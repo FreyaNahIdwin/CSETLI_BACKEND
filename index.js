@@ -1,3 +1,6 @@
+require('dotenv').config()
+
+
 const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
@@ -10,27 +13,27 @@ const path = require('path');
 const validator = require('validator');
 
 ///config
-const PORT = 3000;
-const HOST = 'localhost'
-const JWT_SECRET = 'nagyon_nagyon_titkos_egyedi_jelszo'
-const JWT_EXPIRES_IN = '7d'
+const PORT = process.env.PORT
+const HOST = process.env.HOST
+const JWT_SECRET = process.env.JWT_SECRET
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN
 const COOKIE_NAME = 'auth_token'
 
 ///cookie beallitas
 const COOKIE_OPTS = {
     httpOnly: true,
-    secure: false,
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
 const db = mysql.createPool({
-    host: 'localhost',
-    port: '3306',
-    user: 'root',
-    password: '',
-    database: 'csetli'
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 })
 
 //app
@@ -38,7 +41,7 @@ const app = express();
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: '*',
     credentials: true
 }))
 
@@ -535,7 +538,7 @@ app.post('/emoji/:bejegyzes_id', auth, async (req, res) => {
 
 //vedett
 app.post('/kijelentkezes', auth, async (req, res) => {
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(COOKIE_NAME, { httpOnly:true,secure:true,sameSite:'none',   path: '/' });
     res.status(200).json({ message: "sikeres kijelentkezes" })
 })
 
