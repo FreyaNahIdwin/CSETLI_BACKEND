@@ -5,7 +5,7 @@ const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const mysql = require('mysql2/promise')
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const emailValidator = require('node-email-verifier');
 const multer = require('multer')
@@ -629,6 +629,6 @@ app.get('/kommentek/:bejegyzes_id', async (req, res) => {
 
 
 //szerver elinditas
-app.listen(PORT, HOST, () => {
+app.listen(PORT, () => {
     console.log(`API fut: http://${HOST}:${PORT}/`);
 })
