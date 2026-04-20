@@ -464,7 +464,7 @@ app.get('/ismerosok', auth, async (req, res) => {
     try {
         const [rows] = await db.query(`
       SELECT f.felhasznalo_nev, f.kep,f.felhasznalo_id
-      FROM Ismerosok i
+      FROM ismerosok i
       JOIN felhasznalok f 
         ON f.felhasznalo_id = CASE 
           WHEN i.felhasznalo_1_id = ? THEN i.felhasznalo_2_id
