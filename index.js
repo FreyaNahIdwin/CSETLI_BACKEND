@@ -140,7 +140,7 @@ app.post('/belepes', async (req, res) => {
             return res.status(403).json({ message: "rossz jelszot adtál meg" })
         }
         const token = jwt.sign(
-            { felhasznalo_id: user.felhasznalo_id, jelszo: user.jelszo, email: user.Email, felhasznalonev: user.Felhasznalo_nev, angol: user.angol, kep: user.kep },
+            { felhasznalo_id: user.felhasznalo_id, email: user.Email, felhasznalonev: user.Felhasznalo_nev, angol: user.angol, kep: user.kep },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         )
@@ -327,8 +327,8 @@ app.post('/kovetes/:felhasznalo_id', auth, async (req, res) => {
 app.post('/komment', auth, async (req, res) => {
     const { tartalom, bejegyzes_id } = req.body;
 
-    if (!tartalom) {
-        return res.status(400), express.json({ message: "hianyzo bemeneti adatok" })
+    if (!tartalom || !bejegyzes_id) {
+        return res.status(400).json({ message: "hianyzo bemeneti adatok" })
     }
     try {
         const kommentsql = 'INSERT INTO kommentek (kuldo_felhasznalo_id,bejegyzes_id, tartalom,kuldes_ideje) VALUES (?,?,?,NOW())'
@@ -343,22 +343,18 @@ app.post('/komment', auth, async (req, res) => {
 app.post('/szobaCsinalas/:ismerosId', auth, async (req, res) => {
     const ismerosId = req.params.ismerosId;
 
+
+
     const [rows] = await db.query(
-        `SELECT szoba_id FROM Chat_szoba 
+        `SELECT szoba_id FROM chat_szoba 
          WHERE (felhasznalo1_id = ? OR felhasznalo2_id = ?)
          AND (felhasznalo1_id = ? OR felhasznalo2_id = ?)`,
         [req.user.felhasznalo_id, req.user.felhasznalo_id, ismerosId, ismerosId]
     );
 
-    if (rows.length > 0) {
-        return res.status(200).json({
-            szobaId: rows[0].szoba_id
-        });
-    }
-
     try {
         const [result] = await db.query(
-            `INSERT INTO Chat_szoba (felhasznalo1_id, felhasznalo2_id) VALUES (?, ?)`,
+            `INSERT INTO chat_szoba (felhasznalo1_id, felhasznalo2_id) VALUES (?, ?)`,
             [req.user.felhasznalo_id, ismerosId]
         );
 
@@ -373,26 +369,25 @@ app.post('/szobaCsinalas/:ismerosId', auth, async (req, res) => {
 });
 
 //uzenet kudes
-app.post('/uzenetkuldes/:ismerosId', auth, async (req, res) => {
-    const ismerosId = req.params.ismerosId;
+app.post('/uzenetkuldes/:szobaId', auth, async (req, res) => {
+    const szobaId = req.params.szobaId;
     const { szoveg } = req.body;
 
     try {
         const [sorok] = await db.query(
-            `SELECT szoba_id, felhasznalo1_id, felhasznalo2_id FROM Chat_szoba 
-             WHERE (felhasznalo1_id = ? AND felhasznalo2_id = ?) 
-             OR (felhasznalo1_id = ? AND felhasznalo2_id = ?)`,
-            [req.user.felhasznalo_id, ismerosId, ismerosId, req.user.felhasznalo_id]
-        );
+            `SELECT szoba_id, felhasznalo1_id, felhasznalo2_id
+             FROM chat_szoba
+             WHERE szoba_id = ?
+               AND (felhasznalo1_id = ? OR felhasznalo2_id = ?)
+             LIMIT 1`,
+            [szobaId, req.user.felhasznalo_id, req.user.felhasznalo_id]
+        )
+        if (sorok.length === 0) return res.status(404).json({ message: "Nincs chat szoba" })
 
-        if (sorok.length === 0) {
-            return res.status(404).json({ message: "Nincs chat szoba" });
-        }
-
-        const szoba_id = sorok[0].szoba_id;
+        const szoba_id = sorok[0].szoba_id
 
         const [insertResult] = await db.query(
-            `INSERT INTO Uzenetek (szoba_id, szoveg, felhasznalo_id, kuldes_ideje)
+            `INSERT INTO uzenetek (szoba_id, szoveg, felhasznalo_id, kuldes_ideje)
              VALUES (?, ?, ?, NOW())`,
             [szoba_id, szoveg, req.user.felhasznalo_id]
         );
@@ -400,7 +395,7 @@ app.post('/uzenetkuldes/:ismerosId', auth, async (req, res) => {
         const insertedId = insertResult.insertId;
 
         const [newMessageRows] = await db.query(
-            `SELECT szoveg, kuldes_ideje, felhasznalo_id FROM Uzenetek WHERE id = ?`,
+            `SELECT id, szoveg, kuldes_ideje, felhasznalo_id FROM uzenetek WHERE id = ?`,
             [insertedId]
         );
 
@@ -417,6 +412,7 @@ app.post('/uzenetkuldes/:ismerosId', auth, async (req, res) => {
         res.status(200).json({
             message: "Sikeres uzenet kuldes",
             uzenet: {
+                id: newMessage.id,
                 szoveg: newMessage.szoveg,
                 kuldes_ideje: newMessage.kuldes_ideje,
                 felhasznalo_id: newMessage.felhasznalo_id,
@@ -492,7 +488,7 @@ app.get('/uzenetek/:szobaId', auth, async (req, res) => {
     try {
 
         const [uzenetek] = await db.query(
-            `SELECT szoveg, kuldes_ideje, felhasznalo_id 
+            `SELECT id, szoveg, kuldes_ideje, felhasznalo_id 
              FROM uzenetek 
              WHERE szoba_id = ? 
              ORDER BY kuldes_ideje ASC`,
@@ -515,7 +511,7 @@ app.post('/emoji/:bejegyzes_id', auth, async (req, res) => {
     const bejegyzes_id = req.params.bejegyzes_id
     const { emoji1, emoji2, emoji3 } = req.body
     try {
-        const vanEemoji = await db.query(`SELECT * FROM emoji 
+        const [vanEemoji] = await db.query(`SELECT * FROM emoji 
         WHERE (emoji1=1 OR emoji2=1 OR emoji3=1) AND felhasznalo_id=? 
         AND bejegyzes_id=?`, [req.user.felhasznalo_id, bejegyzes_id])
         if (vanEemoji.length > 0) {
@@ -538,7 +534,7 @@ app.post('/emoji/:bejegyzes_id', auth, async (req, res) => {
 
 //vedett
 app.post('/kijelentkezes', auth, async (req, res) => {
-    res.clearCookie(COOKIE_NAME, { httpOnly:true,secure:true,sameSite:'none',   path: '/' });
+    res.clearCookie(COOKIE_NAME, { ...COOKIE_OPTS, maxAge: 0 });
     res.status(200).json({ message: "sikeres kijelentkezes" })
 })
 
@@ -565,7 +561,7 @@ app.delete('/fiokom', auth, async (req, res) => {
 app.delete('/kovetes/:ismeros_id', auth, async (req, res) => {
     const ismeros_id = req.params.ismeros_id
     try {
-        const [sorok] = await db.query(`SELECT szoba_id FROM Chat_szoba WHERE
+        const [sorok] = await db.query(`SELECT szoba_id FROM chat_szoba WHERE
         (felhasznalo1_id = ? OR felhasznalo2_id = ?) 
         AND (felhasznalo1_id = ? OR felhasznalo2_id = ?)
         `, [req.user.felhasznalo_id, req.user.felhasznalo_id, ismeros_id, ismeros_id])
@@ -620,8 +616,11 @@ app.get('/emberek', async (req, res) => {
 app.get('/kommentek/:bejegyzes_id', async (req, res) => {
     const bejegyzes_id = req.params.bejegyzes_id
     try {
-        const kommentek = await db.query('SELECT tartalom AND felhasznalo_id AND kuldes_ideje FROM kommentek WHERE bejegyzes_id', [bejegyzes_id])
-        res.status(200).json(kommentek)
+        const [kommentek] = await db.query(
+            'SELECT tartalom, kuldo_felhasznalo_id, kuldes_ideje FROM kommentek WHERE Bejegyzes_id = ? ORDER BY kuldes_ideje ASC',
+            [bejegyzes_id]
+        )
+        res.status(200).json({ kommentek })
     } catch (error) {
         res.status(500).json({ message: "szerverhiba" })
     }
