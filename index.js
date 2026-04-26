@@ -37,11 +37,12 @@ const db = mysql.createPool({
 })
 
 //app
+
 const app = express();
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
-    origin: '*',
+    origin: ["http://localhost:5173","https://csetli.netlify.app"],
     credentials: true
 }))
 
@@ -91,7 +92,7 @@ app.post('/regisztracio', upload.single('kep_neve'), async (req, res) => {
             return res.status(402).json({ message: "email vagy felhszanalonev foglalt" });
         }
         const hash = await bcrypt.hash(jelszo, 10);
-        const regisztracioSQL = 'INSERT INTO felhasznalok (Email, Felhasznalo_nev, jelszo, kep) VALUES (?,?,?,?)';
+        const regisztracioSQL = 'INSERT INTO felhasznalok (Email, Felhasznalo_nev, jelszo, kep) VALUES (?,?,?,?)';;
         const [result] = await db.query(regisztracioSQL, [email, felhasznalonev, hash, kep]);
 
         return res.status(200).json({
@@ -200,18 +201,7 @@ app.put('/email', auth, async (req, res) => {
         res.status(500).json({ message: "szerverhiba" })
     }
 })
-// GET /kovetes/status - returns list of followed user IDs for current user
-app.get('/kovetes/status', auth, async (req, res) => {
-    try {
-        const sql = 'SELECT felhasznalo_2_id FROM ismerosok WHERE felhasznalo_1_id = ?';
-        const [rows] = await db.query(sql, [req.user.felhasznalo_id]);
-        const followedUserIds = rows.map(row => row.felhasznalo_2_id);
-        res.status(200).json({ result: true, followedUserIds });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ result: false, message: 'Szerverhiba' });
-    }
-});
+
 
 
 app.put('/profilkep', auth, upload.single('ujProfilkep'), async (req, res) => {
@@ -295,34 +285,33 @@ app.post('/bejegyzes', auth, upload.single("kep"), async (req, res) => {
 //post kovetes
 app.post('/kovetes/:felhasznalo_id', auth, async (req, res) => {
     const felhasznalo_id = req.params.felhasznalo_id;
-    const currentUserId = req.user.felhasznalo_id;
 
     try {
-        // Check if connection already exists in either direction
-        const checkSql = `
-      SELECT 1 FROM ismerosok 
-      WHERE (felhasznalo_1_id = ? AND felhasznalo_2_id = ?)
-         OR (felhasznalo_1_id = ? AND felhasznalo_2_id = ?)
-      LIMIT 1
-    `;
-        const [rows] = await db.query(checkSql, [currentUserId, felhasznalo_id, felhasznalo_id, currentUserId]);
-
-        if (rows.length > 0) {
-            // Connection already exists
-            return res.status(400).json({ message: "Már követed ezt a felhasználót vagy már ismerősök vagytok." });
-        }
-
-        // Insert new connection
-        const insertSql = 'INSERT INTO ismerosok (felhasznalo_1_id, felhasznalo_2_id) VALUES (?, ?)';
-        await db.query(insertSql, [currentUserId, felhasznalo_id]);
-
-        return res.status(200).json({ message: "Sikeres követés" });
+        const kovetessql = 'INSERT INTO ismerosok (felhasznalo_1_id,felhasznalo_2_id) VALUES(?,?)'
+        await db.query(kovetessql, [req.user.felhasznalo_id, felhasznalo_id])
+        return res.status(200).json({ message: "nemkoveti" })
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Szerverhiba" });
+        console.log(error);
+        return res.status(500).json({ message: "Szerverhiba" })
     }
-});
 
+})
+
+app.get('/koveti/:felhasznalo_id', auth, async (req, res) => {
+    const felhasznalo_id = req.params.felhasznalo_id;
+    const [rows] = await db.query(
+        `SELECT * FROM ismerosok WHERE (felhasznalo1_id = ? OR felhasznalo2_id = ?)
+         AND (felhasznalo1_id = ? OR felhasznalo2_id = ?)`,
+        [req.user.felhasznalo_id, req.user.felhasznalo_id, ismerosId, ismerosId]
+    );
+    if (rows.length > 0) 
+    {
+        return res.status(200).json({message:true})
+    }else{
+        return res.status(200).json({message:false})
+    }
+
+})
 //komment
 app.post('/komment', auth, async (req, res) => {
     const { tartalom, bejegyzes_id } = req.body;
@@ -343,8 +332,6 @@ app.post('/komment', auth, async (req, res) => {
 app.post('/szobaCsinalas/:ismerosId', auth, async (req, res) => {
     const ismerosId = req.params.ismerosId;
 
-
-
     const [rows] = await db.query(
         `SELECT szoba_id FROM chat_szoba 
          WHERE (felhasznalo1_id = ? OR felhasznalo2_id = ?)
@@ -352,6 +339,12 @@ app.post('/szobaCsinalas/:ismerosId', auth, async (req, res) => {
         [req.user.felhasznalo_id, req.user.felhasznalo_id, ismerosId, ismerosId]
     );
 
+    if (rows.length > 0) {
+        return res.status(200).json({
+            szobaId: rows[0].szoba_id
+        });
+    }
+    
     try {
         const [result] = await db.query(
             `INSERT INTO chat_szoba (felhasznalo1_id, felhasznalo2_id) VALUES (?, ?)`,
@@ -395,7 +388,7 @@ app.post('/uzenetkuldes/:szobaId', auth, async (req, res) => {
         const insertedId = insertResult.insertId;
 
         const [newMessageRows] = await db.query(
-            `SELECT id, szoveg, kuldes_ideje, felhasznalo_id FROM uzenetek WHERE id = ?`,
+            `SELECT szoba_id, szoveg, kuldes_ideje, felhasznalo_id FROM uzenetek WHERE id = ?`,
             [insertedId]
         );
 
@@ -468,9 +461,6 @@ app.get('/ismerosok', auth, async (req, res) => {
         END
       WHERE i.felhasznalo_1_id = ? OR i.felhasznalo_2_id = ?
     `, [req.user.felhasznalo_id, req.user.felhasznalo_id, req.user.felhasznalo_id]);
-
-        console.log("Friends found:", rows); // Debug log
-
         res.status(200).json({ result: true, ismerosok: rows });
     } catch (error) {
         console.error(error);
@@ -488,7 +478,7 @@ app.get('/uzenetek/:szobaId', auth, async (req, res) => {
     try {
 
         const [uzenetek] = await db.query(
-            `SELECT id, szoveg, kuldes_ideje, felhasznalo_id 
+            `SELECT szoba_id, szoveg, kuldes_ideje, felhasznalo_id 
              FROM uzenetek 
              WHERE szoba_id = ? 
              ORDER BY kuldes_ideje ASC`,
@@ -547,84 +537,129 @@ app.get('/adataim', auth, async (req, res) => {
 //Védett
 app.delete('/fiokom', auth, async (req, res) => {
     try {
-        //törölni kell a felhasználót
-        await db.query("DELETE FROM felhasznalok WHERE felhasznalo_id = ?", [req.user.felhasznalo_id])
-        //utolsó lépés
-        res.clearCookie(COOKIE_NAME, { path: '/' })
-        res.status(200).json({ message: "sikeres fiok torles" })
+        //szobat megkeresi
+        const [chatRooms] = await db.query(
+            "SELECT szoba_id FROM chat_szoba WHERE felhasznalo1_id = ? OR felhasznalo2_id = ?",
+            [req.user.felhasznalo_id, req.user.felhasznalo_id]
+        );
+        const szobaIds = chatRooms.map(room => room.szoba_id);
+        if (szobaIds.length > 0) {
+            // torol uzeneteket
+            await db.query(
+                "DELETE FROM uzenetek WHERE szoba_id IN (?)",
+                [szobaIds]
+            );
+        }
+        // torli szobat
+        await db.query(
+            "DELETE FROM chat_szoba WHERE felhasznalo1_id = ? OR felhasznalo2_id = ?",
+            [req.user.felhasznalo_id, req.user.felhasznalo_id]
+        );
+        // torli bejegyzest
+        await db.query("DELETE FROM bejegyzesek WHERE felhasznalo_id = ?", [req.user.felhasznalo_id]);
+        // torli felhazsnalit
+        await db.query("DELETE FROM felhasznalok WHERE felhasznalo_id = ?", [req.user.felhasznalo_id]);
+        res.clearCookie(COOKIE_NAME, { path: '/' });
+        res.status(200).json({ message: "sikeres fiok torles" });
     } catch (error) {
-        console.log(error)
-        res.status(500).json({ message: "szerverhiba" })
+        console.log(error);
+        res.status(500).json({ message: "szerverhiba" });
     }
-})
+});
+
 
 app.delete('/kovetes/:ismeros_id', auth, async (req, res) => {
-    const ismeros_id = req.params.ismeros_id
-    try {
-        const [sorok] = await db.query(`SELECT szoba_id FROM chat_szoba WHERE
-        (felhasznalo1_id = ? OR felhasznalo2_id = ?) 
-        AND (felhasznalo1_id = ? OR felhasznalo2_id = ?)
-        `, [req.user.felhasznalo_id, req.user.felhasznalo_id, ismeros_id, ismeros_id])
+  const ismeros_id = req.params.ismeros_id;
+  try {
+    const [rows] = await db.query(
+      `SELECT szoba_id FROM chat_szoba WHERE
+       (felhasznalo1_id = ? OR felhasznalo2_id = ?)
+       AND (felhasznalo1_id = ? OR felhasznalo2_id = ?)`,
+      [req.user.felhasznalo_id, req.user.felhasznalo_id, ismeros_id, ismeros_id]
+    );
 
-        const szoba_id = sorok[0]?.szoba_id
-        await db.query('DELETE FROM ismerosok WHERE felhasznalo_1_id = ? AND felhasznalo_2_id=?', [req.user.felhasznalo_id, ismeros_id])
-        await db.query('DELETE FROM chat_szoba WHERE szoba_id=?', [szoba_id])
-        res.status(200).json({ message: "sikeres ismeros torles" })
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({ message: "szerverhiba" })
+    const szoba_id = rows[0]?.szoba_id;
+
+    // Delete friendship in both directions
+    await db.query(
+      'DELETE FROM ismerosok WHERE (felhasznalo_1_id = ? AND felhasznalo_2_id = ?) OR (felhasznalo_1_id = ? AND felhasznalo_2_id = ?)',
+      [req.user.felhasznalo_id, ismeros_id, ismeros_id, req.user.felhasznalo_id]
+    );
+
+    if (szoba_id) {
+      // Delete all messages linked to the chat room first
+      await db.query('DELETE FROM uzenetek WHERE szoba_id = ?', [szoba_id]);
+
+      // Then delete the chat room
+      await db.query('DELETE FROM chat_szoba WHERE szoba_id = ?', [szoba_id]);
     }
-})
 
-
-app.put('/bejegyzes/:bejegyzes_id', auth, async (req, res) => {
-    const bejegyzes_id = req.params.bejegyzes_id
-    const { tartalom, kep } = req.body
-    try {
-        await db.query('UPDATE bejegyzesek SET tartalom=?,kep=? WHERE bejegyzes_id=?', [tartalom, kep, bejegyzes_id])
-        res.status(200).json({ message: "sikeres bejegyzes modositas" })
-
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({ message: "szerverhiba" })
-    }
-})
-
+    res.status(200).json({ message: "sikeres ismeros torles" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "szerverhiba" });
+  }
+});
 
 app.delete('/bejegyzes/:bejegyzes_id', auth, async (req, res) => {
     const bejegyzesId = req.params.bejegyzes_id
-    try {
+    const [rows]=await db.query("SELECT felhasznalo_id FROM bejegyzesek WHERE bejegyzes_id=?",[bejegyzesId])
+    if(rows.length > 0 && rows[0].felhasznalo_id === req.user.felhasznalo_id){
+        try {
+        await db.query("DELETE FROM kommentek WHERE bejegyzes_id=?", [bejegyzesId])
+        await db.query("DELETE FROM emoji WHERE bejegyzes_id=?", [bejegyzesId])
         await db.query("DELETE FROM bejegyzesek WHERE bejegyzes_id=?", [bejegyzesId])
         res.status(200).json({ message: "Sikeres bejegyzes törlés" })
     } catch (error) {
         console.log(error)
         res.status(500).json({ message: "szerverhiba" })
     }
+    }else{
+        return res.status(400).json({message: "csak a sajatod tudod torolni"})
+    }
 })
 
-app.get('/emberek', async (req, res) => {
+app.get('/emberek', auth, async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT felhasznalo_nev, kep, felhasznalo_id FROM felhasznalok');
+        const [rows] = await db.query(
+            'SELECT felhasznalo_nev, kep, felhasznalo_id FROM felhasznalok WHERE felhasznalo_id != ?',
+            [req.user.felhasznalo_id]
+        );
         res.status(200).json({ users: rows });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "szerverhiba" });
     }
-})
+});
 
 /// get komment
 app.get('/kommentek/:bejegyzes_id', async (req, res) => {
-    const bejegyzes_id = req.params.bejegyzes_id
+    const bejegyzes_id = req.params.bejegyzes_id;
     try {
         const [kommentek] = await db.query(
-            'SELECT tartalom, kuldo_felhasznalo_id, kuldes_ideje FROM kommentek WHERE Bejegyzes_id = ? ORDER BY kuldes_ideje ASC',
+            `SELECT k.tartalom, k.kuldo_felhasznalo_id, k.kuldes_ideje, f.Felhasznalo_nev
+             FROM kommentek k
+             JOIN felhasznalok f ON k.kuldo_felhasznalo_id = f.felhasznalo_id
+             WHERE k.Bejegyzes_id = ?
+             ORDER BY k.kuldes_ideje ASC`,
             [bejegyzes_id]
-        )
-        res.status(200).json({ kommentek })
+        );
+        res.status(200).json({ kommentek });
     } catch (error) {
-        res.status(500).json({ message: "szerverhiba" })
+        res.status(500).json({ message: "szerverhiba" });
     }
-})
+});
+
+app.get('/kommentSzam', async (req, res) => {
+  try {
+    const [[result]] = await db.query('SELECT COUNT(komment_id) as kommentSzam FROM kommentek');
+    // result.kommentSzam contains the count number
+    res.status(200).json({ kommentSzam: result.kommentSzam });
+  } catch (error) {
+    res.status(500).json({ message: "szerverhiba" });
+  }
+});
+
 
 
 //szerver elinditas
