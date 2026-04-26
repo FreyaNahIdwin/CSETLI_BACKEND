@@ -498,29 +498,53 @@ app.get('/uzenetek/:szobaId', auth, async (req, res) => {
 });
 
 app.post('/emoji/:bejegyzes_id', auth, async (req, res) => {
-    const bejegyzes_id = req.params.bejegyzes_id
-    const { emoji1, emoji2, emoji3 } = req.body
-    try {
-        const [vanEemoji] = await db.query(`SELECT * FROM emoji 
-        WHERE (emoji1=1 OR emoji2=1 OR emoji3=1) AND felhasznalo_id=? 
-        AND bejegyzes_id=?`, [req.user.felhasznalo_id, bejegyzes_id])
-        if (vanEemoji.length > 0) {
-            await db.query(`UPDATE emoji SET emoji1=?, emoji2=?, emoji3=? 
-                WHERE felhasznalo_id=? AND bejegyzes_id=?
-            `, [emoji1, emoji2, emoji3, req.user.felhasznalo_id, bejegyzes_id])
-            res.status(200).json({ message: "sikeres reagálás" })
-        } else {
-            await db.query(`
-                INSERT INTO emoji (felhasznalo_id, emoji1, emoji2, emoji3, bejegyzes_id)
-                VALUES (?, ?, ?, ?, ?)`, [req.user.felhasznalo_id, emoji1, emoji2, emoji3, bejegyzes_id])
-            res.status(200).json({ message: "sikeres reagálás" })
-        }
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({ message: "szerverhiba" })
-    }
-})
+  const bejegyzes_id = req.params.bejegyzes_id;
+  const { emoji1 } = req.body;
 
+  try {
+    const [vanEemoji] = await db.query(
+      `SELECT * FROM emoji WHERE emoji1=1 AND felhasznalo_id=? AND bejegyzes_id=?`,
+      [req.user.felhasznalo_id, bejegyzes_id]
+    );
+    if (vanEemoji.length > 0) {
+      await db.query(
+        `DELETE FROM emoji WHERE felhasznalo_id=? AND bejegyzes_id=?`,
+        [req.user.felhasznalo_id, bejegyzes_id]
+      );
+      return res.status(200).json({ message: "Like removed" });
+    } else {
+      await db.query(
+  `INSERT INTO emoji (felhasznalo_id, emoji1, emoji2, emoji3, bejegyzes_id)
+VALUES (?, ?, 0, 0, ?)
+ON DUPLICATE KEY UPDATE emoji1 = VALUES(emoji1);
+`,
+  [req.user.felhasznalo_id, emoji1, bejegyzes_id]
+);
+
+      return res.status(200).json({ message: "Like added" });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get('/emojiCount/:bejegyzes_id', auth, async (req, res) => {
+  const bejegyzes_id = req.params.bejegyzes_id;
+  try {
+    const [rows] = await db.query(
+      'SELECT COUNT(emoji1) AS emojiCount FROM emoji WHERE bejegyzes_id = ?',
+      [bejegyzes_id]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "Post not found or no emojis" });
+    }
+    res.status(200).json({ emojiszam: rows[0].emojiCount });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
 
 //vedett
 app.post('/kijelentkezes', auth, async (req, res) => {
@@ -660,6 +684,16 @@ app.get('/kommentSzam', async (req, res) => {
   }
 });
 
+app.get('/kommentSzamBejegyzes/:bejegyzes_id', async (req, res) => {
+    const bejegyzes_id=req.params.bejegyzes_id
+  try {
+    const [[result]] = await db.query('SELECT COUNT(komment_id) as kommentSzam FROM kommentek WHERE bejegyzes_id=?',[bejegyzes_id]);
+    // result.kommentSzam contains the count number
+    res.status(200).json({ kommentSzam: result.kommentSzamBejegyzes });
+  } catch (error) {
+    res.status(500).json({ message: "szerverhiba" });
+  }
+});
 
 
 //szerver elinditas
