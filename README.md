@@ -20,7 +20,7 @@ Ez a backend kezeli a felhasználói hitelesítést, profilkezelést, bejegyzés
 
 ---
 
-## Technológiai verem
+## Technológiák
 
 - **Node.js**
 - **Express.js**
