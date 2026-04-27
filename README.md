@@ -266,6 +266,9 @@ GET /uzenetek/:szobaId
 
 Database / Adatbázis
 A projekt egy MySQL adatbázist használ felhasználók, ismerős kapcsolatok, chat szobák, üzenetek, bejegyzések, kommentek és reakciók tárolására.
+DrawSQL adatbáris kép:
+<img width="2882" height="1876" alt="drawSQL-image-export-2025-09-18 (1)" src="https://github.com/user-attachments/assets/d25eba6f-ccd0-4972-9235-96324eabe7ea" />
+
 
 Példa válaszok
 Sikeres belépés
