@@ -266,8 +266,6 @@ GET /uzenetek/:szobaId
 
 Database / Adatbázis
 A projekt egy MySQL adatbázist használ felhasználók, ismerős kapcsolatok, chat szobák, üzenetek, bejegyzések, kommentek és reakciók tárolására.
-Adatbázis séma kép:
-Adatbázis séma
 
 Példa válaszok
 Sikeres belépés
