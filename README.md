@@ -105,34 +105,42 @@ DB_USER=root
 DB_PASSWORD=a_jelszavad
 DB_NAME=adatbazisod_neve
 
-Telepítés
+## Telepítés
 1. Klónozd a repository-t
 
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+```
+git clone https://github.com/FreyaNahIdwin/CSETLI_BACKEND.git
+cd CSETLI_BACKEND
+```
 
 2. Telepítsd a csomagokat
 
+```
 npm install
+```
 
 3. Hozd létre a .env fájlt
-Add meg a saját környezeti változóidat a fenti példa alapján. 
-4. Indítsd el a szervert
 
+```
+Add meg a saját környezeti változóidat a fenti példa alapján. 
+```
+
+5. Indítsd el a szervert
+
+```
 npm run dev 
 CORS beállítás
 A backend jelenleg az alábbi origin-ekről engedélyezi a kéréseket:
 http://localhost:5173
 https://csetli.netlify.app
 Ha a frontendet máshová telepíted, frissítsd a CORS beállítást a forráskódban.
+```
 
-Statikus fájlok
+## Statikus fájlok
 A feltöltött képek a /uploads útvonalon érhetők el.
-Példa:
+Példa: http://localhost:3000/uploads/filename.jpg
 
-http://localhost:3000/uploads/filename.jpg
-
-Hitelesítés
+## Hitelesítés
 A védett útvonalak az auth_token cookie-t használják.
 A JWT egy HTTP-only cookie-ban kerül tárolásra az alábbi beállításokkal:
 httpOnly: true
@@ -144,176 +152,116 @@ a frontend kéréseknek credentials opcióval kell menniük
 a backend CORS-nak engedélyeznie kell a credentials használatát
 éles környezetben HTTPS szükséges a secure cookie miatt
 
-API végpontok
-Hitelesítés
-Regisztráció
-POST /regisztracio
-Form-data:
-email
-felhasznalonev
-jelszo
-kep_neve (file)
-Login / Belépés
-POST /belepes
-Body:
-{
-  "felhasznalonevVagyEmail": "example@email.com",
-  "jelszo": "password123"
-}
+## API végpontok
 
-Logout / Kijelentkezés
-POST /kijelentkezes
+Ez a dokumentum az alkalmazás backend végpontjait és azok használatát részletezi.
 
-User / Felhasználó
-Saját adatok lekérése
-GET /adataim
-Felhasználónév módosítása
-PUT /felhasznalonev
-```bash
-{
-  "ujfelhasznalonev": "newUsername"
-}
-```
+## 1. Hitelesítés (Authentication)
 
-E-mail módosítása
-```bash
-email
-{
-  "ujEmail": "new@email.com"
-}
-```
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/regisztracio` | **POST** | Új felhasználó regisztrálása | `Form-data`: email, felhasznalonev, jelszo, kep_neve (file) |
+| `/belepes` | **POST** | Bejelentkezés a rendszerbe | `JSON`: `{"felhasznalonevVagyEmail": "...", "jelszo": "..."}` |
+| `/kijelentkezes` | **POST** | Aktuális munkamenet lezárása | - |
 
-Jelszó módosítása
-PUT /jelszo
-```bash
-{
-  "jelenlegiJelszo": "oldPassword",
-  "ujJelszo": "newPassword"
-}
-```
+---
 
-Profilkép módosítása
-PUT /profilkep
-Form-data:
-ujProfilkep (file)
-Fiók törlése
-DELETE /fiokom
+## 2. Felhasználó (User)
 
-Bejegyzések
-Bejegyzés létrehozása
-a kép és a szöveg opcionális,de nem lehet üres posztot létrehozni
-POST /bejegyzes
-Form-data: 
-tartalom (opcionális)
-kep ( opcionális fájl)
-Összes bejegyzés lekérése
-GET /bejegyzesek
-Delete post / Bejegyzés törlése
-DELETE /bejegyzes/:bejegyzes_id
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/adataim` | **GET** | Saját profiladatok lekérése | - |
+| `/felhasznalonev` | **PUT** | Felhasználónév módosítása | `JSON`: `{"ujfelhasznalonev": "newUsername"}` |
+| `/email` | **PUT** | E-mail cím módosítása | `JSON`: `{"ujEmail": "new@email.com"}` |
+| `/jelszo` | **PUT** | Jelszó módosítása | `JSON`: `{"jelenlegiJelszo": "...", "ujJelszo": "..."}` |
+| `/profilkep` | **PUT** | Profilkép cseréje | `Form-data`: `ujProfilkep` (file) |
+| `/fiokom` | **DELETE** | Felhasználói fiók törlése | - |
 
-Kommentek
-Add comment / Komment hozzáadása
-POST /komment
-```bash
-{
-  "tartalom": "Nice post!",
-  "bejegyzes_id": 1
-}
-```
+---
 
-Kommentek lekérése egy bejegyzéshez
-GET /kommentek/:bejegyzes_id
-GET /kommentSzam
-Bejegyzéshez
-GET /kommentSzamBejegyzes/:bejegyzes_id
+## 3. Bejegyzések (Posts)
 
-Reakciók
-Emoji reakció váltása
-POST /emoji/:bejegyzes_id
-```bash
-{
-  "emoji1": 1
-}
-```
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/bejegyzes` | **POST** | Új bejegyzés létrehozása | `Form-data`: `tartalom` (opc.), `kep` (opc.) |
+| `/bejegyzesek` | **GET** | Összes bejegyzés lekérése | - |
+| `/bejegyzes/:id` | **DELETE** | Adott bejegyzés törlése | URL paraméter: `bejegyzes_id` |
 
-Emoji darabszám lekérése
-GET /emojiCount/:bejegyzes_id
+---
 
-Ismerősök
-Követés / Ismerős hozzáadása
-POST /kovetes/:felhasznalo_id
-Ismerős törlése / Követés megszüntetése
-DELETE /kovetes/:ismeros_id
-Ismerős állapot ellenőrzése
-GET /koveti/:felhasznalo_id
-Ismerősök lekérése
-GET /ismerosok
-Összes felhasználó lekérése
-GET /emberek
+## 4. Kommentek (Comments)
 
-Chat / Chat
-POST /szobaCsinalas/:ismerosId
-Üzenet küldése
-POST /uzenetkuldes/:szobaId
-```bash
-{
-  "szoveg": "Hello!"
-}
-```
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/komment` | **POST** | Hozzászólás írása | `JSON`: `{"tartalom": "...", "bejegyzes_id": 1}` |
+| `/kommentek/:id` | **GET** | Bejegyzéshez tartozó kommentek | URL paraméter: `bejegyzes_id` |
+| `/kommentSzam` | **GET** | Rendszerszintű kommentszám | - |
+| `/kommentSzamBejegyzes/:id` | **GET** | Egy poszt kommentjeinek száma | URL paraméter: `bejegyzes_id` |
 
-Üzenetek lekérése
-GET /uzenetek/:szobaId
+---
 
-Database / Adatbázis
+## 5. Reakciók (Reactions)
+
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/emoji/:id` | **POST** | Emoji reakció küldése/váltása | `JSON`: `{"emoji1": 1}` |
+| `/emojiCount/:id` | **GET** | Reakciók száma egy poszton | URL paraméter: `bejegyzes_id` |
+
+---
+
+## 6. Ismerősök (Friends)
+
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/kovetes/:id` | **POST** | Felhasználó követése | URL paraméter: `felhasznalo_id` |
+| `/kovetes/:id` | **DELETE** | Követés megszüntetése | URL paraméter: `ismeros_id` |
+| `/koveti/:id` | **GET** | Követési állapot ellenőrzése | URL paraméter: `felhasznalo_id` |
+| `/ismerosok` | **GET** | Saját ismerősök listája | - |
+| `/emberek` | **GET** | Összes felhasználó listázása | - |
+
+---
+
+## 7. Chat
+
+| Végpont | Metódus | Leírás | Paraméterek / Body |
+| :--- | :--- | :--- | :--- |
+| `/szobaCsinalas/:id` | **POST** | Chat szoba létrehozása | URL paraméter: `ismerosId` |
+| `/uzenetkuldes/:id` | **POST** | Üzenet küldése | `JSON`: `{"szoveg": "Hello!"}` |
+| `/uzenetek/:id` | **GET** | Üzenetek lekérése | URL paraméter: `szobaId` |
+
+## Adatbázis
 A projekt egy MySQL adatbázist használ felhasználók, ismerős kapcsolatok, chat szobák, üzenetek, bejegyzések, kommentek és reakciók tárolására.
 DrawSQL adatbáris kép:
 <img width="2882" height="1876" alt="drawSQL-image-export-2025-09-18 (1)" src="https://github.com/user-attachments/assets/d25eba6f-ccd0-4972-9235-96324eabe7ea" />
 
+## Biztonság
+- A jelszavak bcrypt segítségével vannak hashelve
+- A hitelesítés JWT-vel történik
+- A fájlfeltöltést a multer kezeli
+- A védett végpontokhoz érvényes hitelesítési cookie szükséges
+- Az útvonalnevek és sok válaszüzenet magyar nyelvű
 
-Példa válaszok
-Sikeres belépés
-```bash
-{
-  "message": "Sikeres belépés"
-}
-```
+## Lehetséges fejlesztések
+- A backend több része tovább fejleszthető:
+- jobb hibakezelés és pontosabb státuszkódok
+- egységesebb bemeneti validáció
+- feltöltött fájlok típus- és méretellenőrzése
+- kapcsolódó fájlok törlése a háttértárból adat törlésekor
+- erősebb jogosultság-ellenőrzések
+- jobb adatbázis constraint-ek és indexek
+- egységesebb névadás az útvonalaknál és oszlopoknál
 
-Sikeres bejegyzés létrehozása
-```bash
-{
-  "message": "Sikeres bejegyzes létrehozás"
-}
-```
+## Jövőbeli tervek
+- többféle emoji támogatása
+- értesítési rendszer
+- felhasználókeresés
+- refresh token alapú hitelesítés
+- felhő alapú képtárolás
 
-Megjegyzések
-A jelszavak bcrypt segítségével vannak hashelve
-A hitelesítés JWT-vel történik
-A fájlfeltöltést a multer kezeli
-A védett végpontokhoz érvényes hitelesítési cookie szükséges
-Az útvonalnevek és sok válaszüzenet magyar nyelvű
+## Készítette: 
+- [Plébán Tamás](https://github.com/FreyaNahIdwin)  
+- [Kincses László](https://github.com/T3KK3NHU)
+- [Tömöri Gábor](https://github.com/Tomorigabor440)
 
-Lehetséges fejlesztések
-A backend több része tovább fejleszthető:
-jobb hibakezelés és pontosabb státuszkódok
-egységesebb bemeneti validáció
-feltöltött fájlok típus- és méretellenőrzése
-kapcsolódó fájlok törlése a háttértárból adat törlésekor
-erősebb jogosultság-ellenőrzések
-jobb adatbázis constraint-ek és indexek
-egységesebb névadás az útvonalaknál és oszlopoknál
-
-Jövőbeli tervek
-többféle emoji támogatása
-értesítési rendszer
-felhasználókeresés
-refresh token alapú hitelesítés
-felhő alapú képtárolás
-
-Készítette: 
-
--Plébán Tamás  
--Kincses László 
--Tömöri Gábor
-
-Frontend repository:
+## Frontend repository:
 https://github.com/FreyaNahIdwin/CSSETLI_FRONTEND 
