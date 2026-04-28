@@ -232,7 +232,8 @@ Ez a dokumentum az alkalmazás backend végpontjait és azok használatát rész
 ## Adatbázis
 A projekt egy MySQL adatbázist használ felhasználók, ismerős kapcsolatok, chat szobák, üzenetek, bejegyzések, kommentek és reakciók tárolására.
 DrawSQL adatbáris kép:
-<img width="2882" height="1876" alt="drawSQL-image-export-2025-09-18 (1)" src="https://github.com/user-attachments/assets/d25eba6f-ccd0-4972-9235-96324eabe7ea" />
+<img width="1329" height="565" alt="image" src="https://github.com/user-attachments/assets/e3ed7811-b2d8-4b74-8c5d-e6819e5185be" />
+
 
 ## Biztonság
 - A jelszavak bcrypt segítségével vannak hashelve
